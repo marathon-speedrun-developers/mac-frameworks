@@ -10,92 +10,92 @@ INSTALLDIR="$PWD/installs"
 FWKDIR="$PWD"
 PLIST_TEMPLATE="$PWD/../Info-template.plist"
 
-if [ "$DLNAME" == "" ]; then DLNAME="${URL##*/}"; fi
-if [ "$DIRNAME" == "" ]; then DIRNAME="$PROJ-$VERSION"; fi
-if [ "$FWKS" == "" ]; then FWKS="lib$PROJ"; fi
-if [ "$HEADERROOT" == "" ]; then HEADERROOT="include"; fi
+if [ "$DLNAME" == "" ]; then DLNAME="${URL##*/}"; fi 
+if [ "$DIRNAME" == "" ]; then DIRNAME="$PROJ-$VERSION"; fi 
+if [ "$FWKS" == "" ]; then FWKS="lib$PROJ"; fi 
+if [ "$HEADERROOT" == "" ]; then HEADERROOT="include"; fi 
 
 FWKS=( $FWKS )
 
 # grab source
 if [ ! -f "$DLNAME" ]; then
   curl -L -o "$DLNAME" "$URL"
-fi
+fi 
 
 # unpack source
-if [ -d "$SRCDIR" ]; then rm -r "$SRCDIR"; fi
-case "$DLNAME" in
-  *.tar.bz2 ) tar xjf "$DLNAME" ;;
-  *.tar.gz  ) tar xzf "$DLNAME" ;;
-  *         ) echo "Cannot unpack $DLNAME" ; exit ;;
-esac
-mv "$DIRNAME" "$SRCDIR"
+ 
 
-if [ "$LICENSE" != "" ]; then
-  if [ -f "$SRCDIR/$LICENSE" ]; then
-    cp "$SRCDIR/$LICENSE" "License.txt"
-  fi
-fi
+if [ -d "$COMPILEDIR" ]; then rm -r "$COMPILEDIR"; fi 
+if [ -d "$INSTALLDIR" ]; then rm -r "$INSTALLDIR"; fi 
 
-if [ -d "$COMPILEDIR" ]; then rm -r "$COMPILEDIR"; fi
-if [ -d "$INSTALLDIR" ]; then rm -r "$INSTALLDIR"; fi
+for arch in 'arm64' 'x86_64'; do
 
-# x86_64 build
-IDIR="$INSTALLDIR/x86_64"
-mkdir -p "$IDIR"
-CDIR="$COMPILEDIR/x86_64"
-mkdir -p "$CDIR"
-cd "$CDIR"
+  cd $FWKDIR
 
-export PATH="$PATH_OVERRIDE:$STOCKPATH:$PATH_EXTRA"
-export PKG_CONFIG_PATH="$PKGCONFIG_OVERRIDE:$STOCKPKGCONFIG"
-export ENVP="MACOSX_DEPLOYMENT_TARGET=10.9"
-FLAGS="-arch x86_64 -mmacosx-version-min=10.9"
+  rm -rf ./src
 
-env -i \
-  CC="$DEV/usr/bin/gcc" \
-  CPP="$DEV/usr/bin/gcc -E" \
-  LD="$DEV/usr/bin/g++" \
-  CFLAGS="$FLAGS" \
-  LDFLAGS="$FLAGS" \
-  PATH="$PATH" \
-  PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-  "$SRCDIR/configure" --prefix="$IDIR" $CONFIGOPTS
-env -i \
-  CC="$DEV/usr/bin/gcc" \
-  CPP="$DEV/usr/bin/gcc -E" \
-  LD="$DEV/usr/bin/g++" \
-  CFLAGS="$FLAGS" \
-  LDFLAGS="$FLAGS" \
-  PATH="$PATH" \
-  PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-  make
-env -i \
-  CC="$DEV/usr/bin/gcc" \
-  CPP="$DEV/usr/bin/gcc -E" \
-  LD="$DEV/usr/bin/g++" \
-  CFLAGS="$FLAGS" \
-  LDFLAGS="$FLAGS" \
-  PATH="$PATH" \
-  PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
-  make install
+  if [ -d "$SRCDIR" ]; then rm -r "$SRCDIR"; fi 
+  case "$DLNAME" in
+      *.tar.bz2 ) tar xjf "$DLNAME" ;;
+      *.tar.gz  ) tar xzf "$DLNAME" ;;
+      *         ) echo "Cannot unpack $DLNAME" ; exit ;;
+   esac
+   mv "$DIRNAME" "$SRCDIR"
 
-# Done with compiling
-if [ "$DEBUG" == "" ]; then
-  rm -rf "$COMPILEDIR"
-  rm -r "$SRCDIR"
-fi
+   if [ "$LICENSE" != "" ]; then
+     if [ -f "$SRCDIR/$LICENSE" ]; then
+       cp "$SRCDIR/$LICENSE" "License.txt"
+     fi 
+   fi
 
-if [ "$NOPACKAGING" == "1" ]; then exit; fi
+  IDIR="$INSTALLDIR/$arch"
+  mkdir -p "$IDIR"
+  CDIR="$COMPILEDIR/$arch"
+  mkdir -p "$CDIR"
+  cd $CDIR
 
-# Update shared-library paths
-for arch in x86_64; do
+  export PATH="$PATH_OVERRIDE:$STOCKPATH:$PATH_EXTRA"
+  export PKG_CONFIG_PATH="$PKGCONFIG_OVERRIDE:$STOCKPKGCONFIG"
+  export ENVP="MACOSX_DEPLOYMENT_TARGET=10.11"
+  FLAGS="-arch $arch -mmacosx-version-min=10.11"
+	
+  env -i \
+    CC="$DEV/usr/bin/gcc" \
+    CPP="$DEV/usr/bin/gcc -E" \
+    LD="$DEV/usr/bin/g++" \
+    CFLAGS="$FLAGS" \
+    LDFLAGS="$FLAGS" \
+    PATH="$PATH" \
+    PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+    "$SRCDIR/configure" --prefix="$IDIR" $CONFIGOPTS
+  env -i \
+    CC="$DEV/usr/bin/gcc" \
+    CPP="$DEV/usr/bin/gcc -E" \
+    LD="$DEV/usr/bin/g++" \
+    CFLAGS="$FLAGS" \
+    LDFLAGS="$FLAGS" \
+    PATH="$PATH" \
+    PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+    make
+  env -i \
+    CC="$DEV/usr/bin/gcc" \
+    CPP="$DEV/usr/bin/gcc -E" \
+    LD="$DEV/usr/bin/g++" \
+    CFLAGS="$FLAGS" \
+    LDFLAGS="$FLAGS" \
+    PATH="$PATH" \
+    PKG_CONFIG_PATH="$PKG_CONFIG_PATH" \
+    make install
+
+  # Update shared-library paths
+
+
   LIBDIR="$INSTALLDIR/$arch/lib"
   for lib in "${FWKS[@]}"; do
     lname=${lib#lib}
     dylibvar="DYLIBNAME_$lib"
     dylibname="${!dylibvar}"
-    if [ "$dylibname" == "" ]; then dylibname="$lib.dylib"; fi
+    if [ "$dylibname" == "" ]; then dylibname="$lib.dylib"; fi 
     install_name_tool -id "@executable_path/../Frameworks/$lname.framework/Versions/A/$lname" "$LIBDIR/$dylibname"
     
     # fix links to sibling libraries
@@ -103,18 +103,18 @@ for arch in x86_64; do
       ename=${elib#lib}
       edylibvar="DYLIBNAME_$elib"
       edylibname="${!edylibvar}"
-      if [ "$edylibname" == "" ]; then edylibname="$elib.dylib"; fi
+      if [ "$edylibname" == "" ]; then edylibname="$elib.dylib"; fi 
       install_name_tool -change "$LIBDIR/$edylibname" "@executable_path/../Frameworks/$ename.framework/Versions/A/$ename" "$LIBDIR/$dylibname"
     done
   done
 done
 
-# Set up frameworks
+  # Set up frameworks
 for lib in "${FWKS[@]}"; do
   # set up directory structure
   lname=${lib#lib}
   FDIR="$FWKDIR/$lname.framework"
-  if [ -d "$FDIR" ]; then rm -r "$FDIR"; fi
+  if [ -d "$FDIR" ]; then rm -r "$FDIR"; fi 
   mkdir -p "$FDIR/Versions/A/Headers"
   mkdir -p "$FDIR/Versions/A/Resources"
   
@@ -126,11 +126,10 @@ for lib in "${FWKS[@]}"; do
   ln -s Versions/Current/Resources
   ln -s Versions/Current/$lname
   
-  # copy binary
-  dylibvar="DYLIBNAME_$lib"
-  dylibname="${!dylibvar}"
-  if [ "$dylibname" == "" ]; then dylibname="$lib.dylib"; fi
-  cp "$INSTALLDIR/x86_64/lib/$dylibname" "$FDIR/Versions/A/$lname"
+  lipo \
+    "$INSTALLDIR/arm64/lib/$lib.dylib" \
+    "$INSTALLDIR/x86_64/lib/$lib.dylib" \
+    -create -o "$FDIR/VERSIONS/A/$lname"
   
   # create Info.plist
   cp "$PLIST_TEMPLATE" "$FDIR/Resources/Info.plist"
@@ -140,14 +139,14 @@ for lib in "${FWKS[@]}"; do
   # copy headers
   HNAME="$FDIR/Headers"
   mkdir -p "$HNAME"
-  cd "$INSTALLDIR/x86_64/include"
+  cd "$INSTALLDIR/$arch/include"
   for hfile in `find . -type f`; do
     mkdir -p "$HNAME"/`dirname $hfile`
     cp $hfile "$HNAME/$hfile"
   done
-    
 done
 
+# if [ "$NOPACKAGING" == "1" ]; then exit; fi 
 
 # done with installdir
-if [ "$DEBUG" == "" ]; then rm -r "$INSTALLDIR"; fi
+# if [ "$DEBUG" == "" ]; then rm -r "$INSTALLDIR"; fi 
